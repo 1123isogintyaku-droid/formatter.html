@@ -51,8 +51,15 @@ function normalize(line){
   return line
     .replace(/[＊*]/g,"×")
     .replace(/セット|set/gi,"")
+    .replace(/　/g," ") // 全角→半角
     .replace(/\s+/g," ")
     .trim();
+}
+
+// ★ここが今回の核
+function splitMultiSets(line){
+  // スペースで分割
+  return line.split(" ");
 }
 
 function expandLine(line){
@@ -60,50 +67,60 @@ function expandLine(line){
   line = normalize(line);
   line = line.replace(/回/g,"");
 
-  // 秒
-  if(line.includes("秒")){
-    let sec = line.match(/\d+/);
-    let sets = line.match(/×(\d+)/);
-    let count = sets ? parseInt(sets[1]) : 1;
+  let parts = splitMultiSets(line);
+  let results = [];
 
-    let res=[];
-    for(let i=0;i<count;i++){
-      res.push(`自重×${sec[0]}秒`);
+  parts.forEach(part=>{
+
+    if(!part) return;
+
+    // 秒
+    if(part.includes("秒")){
+      let sec = part.match(/\d+/);
+      let sets = part.match(/×(\d+)/);
+      let count = sets ? parseInt(sets[1]) : 1;
+
+      for(let i=0;i<count;i++){
+        results.push(`自重×${sec[0]}秒`);
+      }
+      return;
     }
-    return res;
-  }
 
-  // →
-  if(line.includes("→")){
-    let weightMatch = line.match(/(\d+(\.\d+)?)(?=kg|×)/);
-    let weight = weightMatch ? weightMatch[1] : "自重";
+    // →
+    if(part.includes("→")){
+      let weightMatch = part.match(/(\d+(\.\d+)?)(?=kg|×)/);
+      let weight = weightMatch ? weightMatch[1] : "自重";
 
-    let reps = line.split("→").map(x=>parseInt(x));
-    return reps.map(r=>`${weight}kg×${r}`);
-  }
+      let reps = part.split("→").map(x=>parseInt(x));
+      reps.forEach(r=>{
+        results.push(`${weight}kg×${r}`);
+      });
+      return;
+    }
 
-  let nums = line.match(/\d+(\.\d+)?/g);
-  if(!nums) return [];
+    let nums = part.match(/\d+(\.\d+)?/g);
+    if(!nums) return;
 
-  let weight, reps, sets = 1;
+    let weight, reps, sets = 1;
 
-  if(nums.length === 3){
-    weight = nums[0];
-    reps = nums[1];
-    sets = nums[2];
-  } else if(nums.length === 2){
-    weight = nums[0];
-    reps = nums[1];
-  } else{
-    return [];
-  }
+    if(nums.length === 3){
+      weight = nums[0];
+      reps = nums[1];
+      sets = nums[2];
+    } else if(nums.length === 2){
+      weight = nums[0];
+      reps = nums[1];
+    } else{
+      return;
+    }
 
-  let res=[];
-  for(let i=0;i<sets;i++){
-    res.push(`${weight}kg×${reps}`);
-  }
+    for(let i=0;i<sets;i++){
+      results.push(`${weight}kg×${reps}`);
+    }
 
-  return res;
+  });
+
+  return results;
 }
 
 function convert(){
@@ -123,14 +140,13 @@ function convert(){
       return;
     }
 
-    // ★ここ修正：×がある時だけセット扱い
+    // セット行（×がある場合）
     if(line.includes("×") || line.includes("*") || line.includes("＊")){
       let sets = expandLine(line);
       sets.forEach(s=>{
         output += s + "\n";
       });
     } else {
-      // 種目（カッコ付きもそのまま）
       output += "\n" + line + "\n";
     }
 
