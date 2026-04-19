@@ -10,11 +10,6 @@ body{
   background:#f5f7fa;
   padding:20px;
 }
-
-h2{
-  margin-bottom:10px;
-}
-
 textarea{
   width:100%;
   height:220px;
@@ -22,9 +17,7 @@ textarea{
   border-radius:10px;
   padding:10px;
   border:1px solid #ccc;
-  font-size:14px;
 }
-
 button{
   padding:10px 20px;
   border:none;
@@ -32,15 +25,12 @@ button{
   background:#4CAF50;
   color:white;
   cursor:pointer;
-  margin-bottom:15px;
 }
-
 pre{
   background:white;
   padding:15px;
   border-radius:10px;
   white-space:pre-wrap;
-  border:1px solid #ddd;
 }
 </style>
 
@@ -49,7 +39,7 @@ pre{
 
 <h2>ログ整形ツール</h2>
 
-<textarea id="input" placeholder="ここにそのまま貼る"></textarea>
+<textarea id="input"></textarea>
 <button onclick="convert()">整形する</button>
 
 <h3>結果</h3>
@@ -57,22 +47,20 @@ pre{
 
 <script>
 
-// 前処理
 function normalize(line){
   return line
-    .replace(/[＊*]/g,"×") // アスタリスク完全対応
+    .replace(/[＊*]/g,"×")
     .replace(/セット|set/gi,"")
     .replace(/\s+/g," ")
     .trim();
 }
 
-// 展開処理
 function expandLine(line){
 
   line = normalize(line);
   line = line.replace(/回/g,"");
 
-  // 秒系
+  // 秒
   if(line.includes("秒")){
     let sec = line.match(/\d+/);
     let sets = line.match(/×(\d+)/);
@@ -85,7 +73,7 @@ function expandLine(line){
     return res;
   }
 
-  // →展開
+  // →
   if(line.includes("→")){
     let weightMatch = line.match(/(\d+(\.\d+)?)(?=kg|×)/);
     let weight = weightMatch ? weightMatch[1] : "自重";
@@ -94,24 +82,19 @@ function expandLine(line){
     return reps.map(r=>`${weight}kg×${r}`);
   }
 
-  // 数字抽出
   let nums = line.match(/\d+(\.\d+)?/g);
   if(!nums) return [];
 
   let weight, reps, sets = 1;
 
   if(nums.length === 3){
-    // 7×10×3
     weight = nums[0];
     reps = nums[1];
     sets = nums[2];
-  }
-  else if(nums.length === 2){
-    // 7×10
+  } else if(nums.length === 2){
     weight = nums[0];
     reps = nums[1];
-  }
-  else{
+  } else{
     return [];
   }
 
@@ -123,14 +106,12 @@ function expandLine(line){
   return res;
 }
 
-// メイン変換
 function convert(){
 
   const input = document.getElementById("input").value;
   const lines = input.split("\n");
 
   let output="";
-  let currentExercise="";
 
   lines.forEach(line=>{
     line=line.trim();
@@ -142,16 +123,15 @@ function convert(){
       return;
     }
 
-    // 数値系（セット）
-    if(/[0-9]/.test(line)){
+    // ★ここ修正：×がある時だけセット扱い
+    if(line.includes("×") || line.includes("*") || line.includes("＊")){
       let sets = expandLine(line);
       sets.forEach(s=>{
         output += s + "\n";
       });
-    }else{
-      // 種目
-      currentExercise = line;
-      output += "\n" + currentExercise + "\n";
+    } else {
+      // 種目（カッコ付きもそのまま）
+      output += "\n" + line + "\n";
     }
 
   });
