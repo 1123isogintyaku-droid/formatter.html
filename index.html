@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ログ整形ツール</title>
+<title>トレメニュー整形</title>
 
 <style>
 body{
@@ -12,11 +12,11 @@ body{
 }
 textarea{
   width:100%;
-  height:220px;
-  margin-bottom:10px;
+  height:200px;
   border-radius:10px;
   padding:10px;
   border:1px solid #ccc;
+  margin-bottom:10px;
 }
 button{
   padding:10px 20px;
@@ -25,25 +25,22 @@ button{
   background:#4CAF50;
   color:white;
   cursor:pointer;
-}
-pre{
-  background:white;
-  padding:15px;
-  border-radius:10px;
-  white-space:pre-wrap;
+  margin-right:10px;
 }
 </style>
-
 </head>
+
 <body>
 
-<h2>ログ整形ツール</h2>
+<h2>トレメニュー整形</h2>
 
-<textarea id="input"></textarea>
-<button onclick="convert()">整形する</button>
+<textarea id="input"></textarea><br>
+
+<button onclick="convert()">整形</button>
+<button onclick="copyResult()">コピー</button>
 
 <h3>結果</h3>
-<pre id="output"></pre>
+<textarea id="output" readonly></textarea>
 
 <script>
 
@@ -51,108 +48,89 @@ function normalize(line){
   return line
     .replace(/[＊*]/g,"×")
     .replace(/セット|set/gi,"")
-    .replace(/　/g," ") // 全角→半角
+    .replace(/　/g," ")
     .replace(/\s+/g," ")
     .trim();
 }
 
-// ★ここが今回の核
-function splitMultiSets(line){
-  // スペースで分割
-  return line.split(" ");
-}
+function expand(line){
+  line = normalize(line).replace(/回/g,"");
 
-function expandLine(line){
+  let parts = line.split(" ");
+  let result=[];
 
-  line = normalize(line);
-  line = line.replace(/回/g,"");
+  parts.forEach(p=>{
+    if(!p) return;
 
-  let parts = splitMultiSets(line);
-  let results = [];
-
-  parts.forEach(part=>{
-
-    if(!part) return;
-
-    // 秒
-    if(part.includes("秒")){
-      let sec = part.match(/\d+/);
-      let sets = part.match(/×(\d+)/);
-      let count = sets ? parseInt(sets[1]) : 1;
-
-      for(let i=0;i<count;i++){
-        results.push(`自重×${sec[0]}秒`);
+    // 自重
+    if(p.includes("自重")){
+      let nums = p.match(/\d+/g);
+      if(!nums){
+        result.push("自重");
+      }else if(nums.length===2){
+        for(let i=0;i<nums[1];i++){
+          result.push(`自重×${nums[0]}`);
+        }
+      }else{
+        result.push(`自重×${nums[0]}`);
       }
       return;
     }
 
     // →
-    if(part.includes("→")){
-      let weightMatch = part.match(/(\d+(\.\d+)?)(?=kg|×)/);
-      let weight = weightMatch ? weightMatch[1] : "自重";
-
-      let reps = part.split("→").map(x=>parseInt(x));
+    if(p.includes("→")){
+      let weight = p.match(/(\d+(\.\d+)?)(?=kg|×)/);
+      weight = weight ? weight[1] : "";
+      let reps = p.split("→").map(x=>parseInt(x));
       reps.forEach(r=>{
-        results.push(`${weight}kg×${r}`);
+        result.push(weight?`${weight}kg×${r}`:`自重×${r}`);
       });
       return;
     }
 
-    let nums = part.match(/\d+(\.\d+)?/g);
+    let nums = p.match(/\d+(\.\d+)?/g);
     if(!nums) return;
 
-    let weight, reps, sets = 1;
+    let w,r,s=1;
+    if(nums.length===3){ w=nums[0]; r=nums[1]; s=nums[2]; }
+    else{ w=nums[0]; r=nums[1]; }
 
-    if(nums.length === 3){
-      weight = nums[0];
-      reps = nums[1];
-      sets = nums[2];
-    } else if(nums.length === 2){
-      weight = nums[0];
-      reps = nums[1];
-    } else{
-      return;
+    for(let i=0;i<s;i++){
+      result.push(`${w}kg×${r}`);
     }
-
-    for(let i=0;i<sets;i++){
-      results.push(`${weight}kg×${reps}`);
-    }
-
   });
 
-  return results;
+  return result;
 }
 
 function convert(){
+  let lines = document.getElementById("input").value.split("\n");
+  let out="";
 
-  const input = document.getElementById("input").value;
-  const lines = input.split("\n");
+  lines.forEach(l=>{
+    l=l.trim();
+    if(!l) return;
 
-  let output="";
-
-  lines.forEach(line=>{
-    line=line.trim();
-    if(!line) return;
-
-    // 日付
-    if(line.match(/^\d{1,2}\/\d{1,2}$/)){
-      output += "\n" + line + "\n\n";
+    if(l.match(/^\d{1,2}\/\d{1,2}$/)){
+      out += "\n"+l+"\n\n";
       return;
     }
 
-    // セット行（×がある場合）
-    if(line.includes("×") || line.includes("*") || line.includes("＊")){
-      let sets = expandLine(line);
-      sets.forEach(s=>{
-        output += s + "\n";
-      });
-    } else {
-      output += "\n" + line + "\n";
+    if(l.includes("×")||l.includes("*")||l.includes("自重")){
+      expand(l).forEach(x=> out+=x+"\n");
+    }else{
+      out += "\n"+l+"\n";
     }
-
   });
 
-  document.getElementById("output").textContent = output;
+  document.getElementById("output").value = out;
+}
+
+function copyResult(){
+  navigator.clipboard.writeText(
+    document.getElementById("output").value
+  );
+  alert("コピーした 👍");
 }
 
 </script>
