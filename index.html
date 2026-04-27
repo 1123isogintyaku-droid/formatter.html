@@ -133,18 +133,31 @@ function convert(){
       return;
     }
 
-    // 「20×12 3セット」→「20×12×3」に変換
+    // 「20×12 3セット」→「20×12×3」
     l = l.replace(
-      /(\d+(?:\.\d+)?(?:kg)?[×]\d+(?:\.\d+)?)[ ]+(\d+)\s*(セット|set)/gi,
+      /(\d+(?:\.\d+)?(?:kg)?×\d+(?:\.\d+)?)[ ]+(\d+)\s*(セット|set)/gi,
       "$1×$2"
     );
 
     // セット表記削除
     l = l.replace(/セット|set/gi,"");
 
+    // 重量系
     if(l.includes("×")||l.includes("*")||l.includes("自重")){
       expand(l).forEach(x=> out+=x+"\n");
-    }else{
+    }
+
+    // 回・秒の複数セット分割
+    else if((l.match(/\d+\s*(回|秒)/g) || []).length >= 2){
+      let reps = l.match(/\d+\s*(回|秒)/g);
+
+      reps.forEach(r=>{
+        out += r.trim() + "\n";
+      });
+    }
+
+    // 通常テキスト
+    else{
       out += "\n"+l+"\n";
     }
   });
