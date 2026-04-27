@@ -47,7 +47,6 @@ button{
 function normalize(line){
   return line
     .replace(/[＊*]/g,"×")
-    .replace(/セット|set/gi,"")
     .replace(/　/g," ")
     .replace(/\s+/g," ")
     .trim();
@@ -55,6 +54,11 @@ function normalize(line){
 
 function expand(line){
   line = normalize(line).replace(/回/g,"");
+
+  // 行頭が × の場合は自重扱い
+  if(line.match(/^×/)){
+    line = "自重" + line;
+  }
 
   let parts = line.split(" ");
   let result=[];
@@ -65,6 +69,7 @@ function expand(line){
     // 自重
     if(p.includes("自重")){
       let nums = p.match(/\d+/g);
+
       if(!nums){
         result.push("自重");
       }else if(nums.length===2){
@@ -77,13 +82,15 @@ function expand(line){
       return;
     }
 
-    // →
+    // → 記法
     if(p.includes("→")){
       let weight = p.match(/(\d+(\.\d+)?)(?=kg|×)/);
       weight = weight ? weight[1] : "";
+
       let reps = p.split("→").map(x=>parseInt(x));
+
       reps.forEach(r=>{
-        result.push(weight?`${weight}kg×${r}`:`自重×${r}`);
+        result.push(weight ? `${weight}kg×${r}` : `自重×${r}`);
       });
       return;
     }
@@ -92,8 +99,17 @@ function expand(line){
     if(!nums) return;
 
     let w,r,s=1;
-    if(nums.length===3){ w=nums[0]; r=nums[1]; s=nums[2]; }
-    else{ w=nums[0]; r=nums[1]; }
+
+    if(nums.length===3){
+      w=nums[0];
+      r=nums[1];
+      s=nums[2];
+    }else if(nums.length===2){
+      w=nums[0];
+      r=nums[1];
+    }else{
+      return;
+    }
 
     for(let i=0;i<s;i++){
       result.push(`${w}kg×${r}`);
@@ -111,10 +127,20 @@ function convert(){
     l=l.trim();
     if(!l) return;
 
+    // 日付行
     if(l.match(/^\d{1,2}\/\d{1,2}$/)){
       out += "\n"+l+"\n\n";
       return;
     }
+
+    // 「20×12 3セット」→「20×12×3」に変換
+    l = l.replace(
+      /(\d+(?:\.\d+)?(?:kg)?[×]\d+(?:\.\d+)?)[ ]+(\d+)\s*(セット|set)/gi,
+      "$1×$2"
+    );
+
+    // セット表記削除
+    l = l.replace(/セット|set/gi,"");
 
     if(l.includes("×")||l.includes("*")||l.includes("自重")){
       expand(l).forEach(x=> out+=x+"\n");
